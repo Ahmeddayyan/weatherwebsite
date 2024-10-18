@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App - Tables</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="flex h-screen">
+        <div class="w-64 bg-blue-600 text-white p-6">
+            <h1 id="weather-app" class="text-2xl font-bold mb-8">Weather App</h1>
+            <a href="dashboard.html" class="block py-2 px-4 hover:bg-blue-700 rounded mb-2">Dashboard</a>
+            <a href="tables.html" class="block py-2 px-4 bg-blue-700 rounded">Tables</a>
+        </div>
+
+        <div class="flex-1 p-10 overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <input type="text" id="cityInput" placeholder="Enter city name" class="p-2 border rounded">
+                <button id="getWeather" class="bg-blue-500 text-white px-4 py-2 rounded">Get Weather</button>
+                <div class="rounded-full bg-gray-300 w-10 h-10"></div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                <h3 id="day-weather-forecast" class="text-xl font-bold mb-4">5-Day Weather Forecast</h3>
+
+                <div class="mb-4">
+                    <button id="sortAsc" class="bg-blue-500 text-white px-4 py-2 rounded mr-2">Sort Ascending</button>
+                    <button id="sortDesc" class="bg-blue-500 text-white px-4 py-2 rounded mr-2">Sort Descending</button>
+                    <button id="filterRain" class="bg-blue-500 text-white px-4 py-2 rounded mr-2">Filter Rain</button>
+                    <button id="highestTemp" class="bg-blue-500 text-white px-4 py-2 rounded">Highest Temperature</button>
+                </div>
+
+                <table class="w-full">
+                    <thead>
+                        <tr>
+                            <th class="border p-2">Date</th>
+                            <th class="border p-2">Temperature (°C)</th>
+                            <th class="border p-2">Weather Condition</th>
+                        </tr>
+                    </thead>
+                    <tbody id="forecastTable"></tbody>
+                </table>
+
+                <div id="pagination" class="mt-4 flex justify-center"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>

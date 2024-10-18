@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <div class="w-64 bg-blue-600 text-white p-6">
+            <h1 class="text-2xl font-bold mb-8">Weather App</h1>
+            <nav>
+                <a href="#" class="block py-2 px-4 bg-blue-700 rounded mb-2">Dashboard</a>
+                <a href="tables.html" class="block py-2 px-4 hover:bg-blue-700 rounded">Tables</a>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 p-10 overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <input type="text" id="cityInput" placeholder="Enter city name" class="p-2 border rounded">
+                <button id="getWeather" class="bg-blue-500 text-white p-2 rounded">Get Weather</button>
+                <div class="rounded-full bg-gray-300 w-10 h-10"></div>
+            </div>
+
+            <!-- Weather Widget -->
+            <div id="weatherWidget" class="bg-white p-6 rounded-lg shadow-md mb-6">
+                <h2 id="cityName" class="text-2xl font-bold mb-4"></h2>
+                <div id="weatherInfo" class="grid grid-cols-2 gap-4">
+                    <!-- Weather info will be populated here -->
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="grid grid-cols-3 gap-6 mb-6">
+                <div class="bg-white p-4 rounded-lg shadow-md">
+                    <canvas id="tempChart"></canvas>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-md">
+                    <canvas id="conditionChart"></canvas>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-md">
+                    <canvas id="tempLineChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Forecast Table -->
+            <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                <h3 class="text-xl font-bold mb-4">5-Day Forecast</h3>
+                <table id="forecastTable" class="w-full">
+                    <thead>
+                        <tr>
+                            <th class="text-left">Date</th>
+                            <th class="text-left">Temperature</th>
+                            <th class="text-left">Condition</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Forecast data will be populated here -->
+                    </tbody>
+                </table>
+                <div id="pagination" class="mt-4 flex justify-center">
+                    <!-- Pagination buttons will be added here -->
+                </div>
+            </div>
+
+            <!-- Chatbot -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h3 class="text-xl font-bold mb-4">Weather Chatbot</h3>
+                <div id="chatMessages" class="h-60 overflow-y-auto mb-4 p-4 border rounded">
+                    <!-- Chat messages will appear here -->
+                </div>
+                <div class="flex">
+                    <input type="text" id="chatInput" placeholder="Ask about weather..." class="flex-1 p-2 border rounded-l">
+                    <button id="sendChat" class="bg-blue-500 text-white p-2 rounded-r">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = '08b49ae57bb1d5e8b459aabb49ca56d2';
+        const BASE_URL = 'https://api.openweathermap.org/data/2.5';
+
+        let forecastData = [];
+        let currentPage = 1;
+        const itemsPerPage = 10;
+
+        async function getCurrentWeather(city) {
+            const response = await fetch(`${BASE_URL}/weather?q=${city}&appid=${API_KEY}&units=metric`);
+            if (!response.ok) throw new Error('City not found');
+            return await response.json();
+        }
+
+        async function getForecast(city) {
+            const response = await fetch(`${BASE_URL}/forecast?q=${city}&appid=${API_KEY}&units=metric`);
+            if (!response.ok) throw new Error('Forecast not available');
+            return await response.json();
+        }
+
+        function updateWeatherWidget(data) {
+            const weatherWidget = document.getElementById('weatherWidget');
+            const cityName = document.getElementById('cityName');
+            const weatherInfo = document.getElementById('weatherInfo');
+
+            cityName.textContent = data.name;
+            weatherInfo.innerHTML = `
+                <div>Temperature: ${data.main.temp}°C</div>
+                <div>Humidity: ${data.main.humidity}%</div>
+                <div>Wind Speed: ${data.wind.speed} m/s</div>
+                <div>Weather: ${data.weather[0].description}</div>
+            `;
+
+            // Change background based on weather condition
+            const condition = data.weather[0].main.toLowerCase();
+            if (condition.includes('cloud')) {
+                weatherWidget.style.backgroundColor = '#E0E0E0';
+            } else if (condition.includes('rain')) {
+                weatherWidget.style.backgroundColor = '#B3E5FC';
+            } else {
+                weatherWidget.style.backgroundColor = '#FFECB3';
+            }
+        }
+
+        function createCharts(forecastData) {
+            const labels = forecastData.map(item => new Date(item.dt * 1000).toLocaleDateString());
+            const temperatures = forecastData.map(item => item.main.temp);
+            const conditions = forecastData.map(item => item.weather[0].main);
+
+            // Vertical Bar Chart
+            new Chart(document.getElementById('tempChart'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Temperature (°C)',
+                        data: temperatures,
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)'
+                    }]
+                },
+                options: {
+                    animation: {
+                        delay: (context) => context.dataIndex * 100
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Doughnut Chart
+            const conditionCounts = conditions.reduce((acc, condition) => {
+                acc[condition] = (acc[condition] || 0) + 1;
+                return acc;
+            }, {});
+
+            new Chart(document.getElementById('conditionChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(conditionCounts),
+                    datasets: [{
+                        data: Object.values(conditionCounts),
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.6)',
+                            'rgba(54, 162, 235, 0.6)',
+                            'rgba(255, 206, 86, 0.6)',
+                            'rgba(75, 192, 192, 0.6)',
+                            'rgba(153, 102, 255, 0.6)'
+                        ]
+                    }]
+                },
+                options: {
+                    animation: {
+                        delay: (context) => context.dataIndex * 100
+                    }
+                }
+            });
+
+            // Line Chart
+            new Chart(document.getElementById('tempLineChart'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Temperature (°C)',
+                        data: temperatures,
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    animation: {
+                        x: {
+                            type: 'number',
+                            easing: 'linear',
+                            duration: 1000,
+                            from: 0,
+                            delay: (context) => context.dataIndex * 100
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateForecastTable() {
+            const tableBody = document.getElementById('forecastTable').getElementsByTagName('tbody')[0];
+            tableBody.innerHTML = '';
+
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const pageData = forecastData.slice(startIndex, endIndex);
+
+            pageData.forEach(item => {
+                const row = tableBody.insertRow();
+                row.insertCell(0).textContent = new Date(item.dt * 1000).toLocaleDateString();
+                row.insertCell(1).textContent = `${item.main.temp}°C`;
+                row.insertCell(2).textContent = item.weather[0].description;
+            });
+
+            updatePagination();
+        }
+
+        function updatePagination() {
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+
+            const totalPages = Math.ceil(forecastData.length / itemsPerPage);
+
+            for (let i = 1; i <= totalPages; i++) {
+                const button = document.createElement('button');
+                button.textContent = i;
+                button.className = `mx-1 px-3 py-1 rounded ${currentPage === i ? 'bg-blue-500 text-white' : 'bg-gray-200'}`;
+                button.onclick = () => {
+                    currentPage = i;
+                    updateForecastTable();
+                };
+                pagination.appendChild(button);
+            }
+        }
+
+        document.getElementById('getWeather').addEventListener('click', async () => {
+            const city = document.getElementById('cityInput').value;
+            try {
+                const currentWeather = await getCurrentWeather(city);
+                updateWeatherWidget(currentWeather);
+
+                const forecast = await getForecast(city);
+                forecastData = forecast.list;
+                createCharts(forecastData);
+                updateForecastTable();
+            } catch (error) {
+                alert(error.message);
+            }
+        });
+
+        // Gemini API integration for chatbot
+        const GEMINI_API_KEY = 'AIzaSyDVkCMz9pENJkqZjQ-fdYszY1Rlc1YPUxg';
+
+        async function getChatbotResponse(message) {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: `You are a weather assistant. Respond to this message: ${message}`
+                        }]
+                    }]
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to get response from Gemini API');
+            }
+
+            const data = await response.json();
+            return data.candidates[0].content.parts[0].text;
+        }
+
+        document.getElementById('sendChat').addEventListener('click', async () => {
+            const chatInput = document.getElementById('chatInput');
+            const chatMessages = document.getElementById('chatMessages');
+
+            const userMessage = chatInput.value;
+            chatMessages.innerHTML += `<div class="mb-2"><strong>You:</strong> ${userMessage}</div>`;
+
+            try {
+                const botResponse = await getChatbotResponse(userMessage);
+                chatMessages.innerHTML += `<div class="mb-2"><strong>Bot:</strong> ${botResponse}</div>`;
+            } catch (error) {
+                chatMessages.innerHTML += `<div class="mb-2"><strong>Bot:</strong> Sorry, I'm having trouble responding right now. Please try again later.</div>`;
+            }
+
+            chatInput.value = '';
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        });
+
+        // Initialize the page
+        updateForecastTable();
+    </script>
+</body>
+</html>
